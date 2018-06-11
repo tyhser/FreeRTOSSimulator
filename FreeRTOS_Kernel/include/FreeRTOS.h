@@ -689,7 +689,7 @@ extern "C" {
 #endif
 
 #ifndef configGENERATE_RUN_TIME_STATS
-	#define configGENERATE_RUN_TIME_STATS 0
+	#define configGENERATE_RUN_TIME_STATS 1
 #endif
 
 #if ( configGENERATE_RUN_TIME_STATS == 1 )

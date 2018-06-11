@@ -6,76 +6,108 @@
 #include "task.h"
 #include "queue.h"
 
-static void vTask1( void *pvParameters );
-static void vTask2( void *pvParameters );
+#define START_TASK_PRIO	1
+#define START_TSK_SIZE	128
+TaskHandle_t StartTask_Handler;
+void start_task(void *pvParameters);
 
-int main()
+#define LED0_TASK_PRIO 2
+#define LED0_TSK_SIZE 50
+TaskHandle_t LED0Task_Handler;
+void led0_task(void *p_arg);
+
+#define LED1_TASK_PRIO 3
+#define LED1_TSK_SIZE 50
+TaskHandle_t LED1Task_Handler;
+void led1_task(void *p_arg);
+
+#define FLOAT_TASK_PRIO 4
+#define FLOAT_TSK_SIZE 128
+TaskHandle_t FLOATTask_Handler;
+void float_task(void *p_arg);
+
+int main(void)
 {
-    static xQueueHandle xTestQueue;
-    xTestQueue = xQueueCreate( 10, ( unsigned portBASE_TYPE ) sizeof( unsigned short ) );
-    xTaskCreate( vTask1, "vTask1", configMINIMAL_STACK_SIZE, ( void * ) &xTestQueue, tskIDLE_PRIORITY, NULL );
-    xTaskCreate( vTask2, "vTask2", configMINIMAL_STACK_SIZE, ( void * ) &xTestQueue, tskIDLE_PRIORITY, NULL );
+	xTaskCreate((TaskFunction_t)start_task, 
+			(const char *)"start_task",
+			(uint16_t )START_TSK_SIZE,
+			(void *)NULL,
+			(UBaseType_t)START_TASK_PRIO,
+			(TaskHandle_t *)*&StartTask_Handler);
+	vTaskStartScheduler();
 
-    vTaskStartScheduler();
-    return 1;
+	return 0;
 }
 
-static void vTask1( void *pvParameters )
+void start_task(void *pvParameters)
 {
-unsigned short usValue = 0, usLoop;
-xQueueHandle *pxQueue;
-const unsigned short usNumToProduce = 3;
-short sError = pdFALSE;
+	taskENTER_CRITICAL();
 
-    pxQueue = ( xQueueHandle * ) pvParameters;
+	xTaskCreate((TaskFunction_t)led0_task,
+			(const char *)"led0_task",
+			(uint16_t)LED0_TSK_SIZE,
+			(void *)NULL,
+			(UBaseType_t)LED0_TASK_PRIO,
+			(TaskHandle_t *)&LED0Task_Handler);
 
-    for( ;; )
-    {       
-        for( usLoop = 0; usLoop < usNumToProduce; ++usLoop )
-        {
-            /* Send an incrementing number on the queue without blocking. */
-            printf("Task1 will send: %d\r\n", usValue);
-            if( xQueueSendToBack( *pxQueue, ( void * ) &usValue, ( portTickType ) 0 ) != pdPASS )
-            {
-                sError = pdTRUE;
-            }
-            else
-            {
-                ++usValue;
-            }
-        }
-        vTaskDelay( 2000 );
-    }
-}
-static void vTask2( void *pvParameters )
-{
-unsigned short usData = 0;
-xQueueHandle *pxQueue;
+	xTaskCreate((TaskFunction_t)led1_task,
+			(const char *)"led1_task",
+			(uint16_t)LED1_TSK_SIZE,
+			(void *)NULL,
+			(UBaseType_t)LED0_TASK_PRIO,
+			(TaskHandle_t *)&LED1Task_Handler);
 
-    pxQueue = ( xQueueHandle * ) pvParameters;
-
-    for( ;; )
-    {       
-        while( uxQueueMessagesWaiting( *pxQueue ) )
-        {
-            if( xQueueReceive( *pxQueue, &usData, ( portTickType ) 0 ) == pdPASS )
-            {
-                printf("Task2 received:%d\r\n", usData);
-            }
-        }
-        vTaskDelay( 5000 );
-    }
+	xTaskCreate((TaskFunction_t)float_task,
+			(const char *)"float_task",
+			(uint16_t)FLOAT_TSK_SIZE,
+			(void *)NULL,
+			(UBaseType_t)FLOAT_TASK_PRIO,
+			(TaskHandle_t *)&FLOATTask_Handler);
+	vTaskDelete(StartTask_Handler);
+	taskEXIT_CRITICAL();
 }
 
-/********************************************************/
-/* This is a stub function for FreeRTOS_Kernel */
-void vMainQueueSendPassed( void )
+void led0_task(void *pvParameters)
 {
-    return;
+	static uint32_t StaticTest;
+	while (1)
+	{
+		printf("LED0\n");
+	/*	vTaskDelay(500);*/
+		for (uint32_t i = 0; i < 0xffffffff; i++)
+			;
+		StaticTest++;
+		if (StaticTest > 4)
+			vTaskSuspend(0);
+	}
 }
 
-/* This is a stub function for FreeRTOS_Kernel */
-void vApplicationIdleHook( void )
+void led1_task(void *pvParameters)
 {
-    return;
+	while (1)
+	{
+		printf("LED1\n");
+		vTaskDelay(80);
+	}
+}
+
+void float_task(void *p_arg)
+{
+	static float float_num = 0.00;
+	while (1)
+	{
+		float_num += 0.01f;
+		printf("the value of float_num is : % .4f\n", float_num);
+		vTaskDelay(10);
+	}
+}
+
+void vMainQueueSendPassed(void)
+{
+	;
+}
+
+void vApplicationIdleHook(void)
+{
+	;
 }
