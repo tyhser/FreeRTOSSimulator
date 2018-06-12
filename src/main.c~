@@ -6,100 +6,74 @@
 #include "task.h"
 #include "queue.h"
 
-#define START_TASK_PRIO	1
-#define START_TSK_SIZE	128
-TaskHandle_t StartTask_Handler;
-void start_task(void *pvParameters);
+xQueueHandle xQueue;
+static void vSenderTask(void *pvParameters)
+{
+	long lValueToSend;
+	portBASE_TYPE xStatus;
 
-#define LED0_TASK_PRIO 2
-#define LED0_TSK_SIZE 50
-TaskHandle_t LED0Task_Handler;
-void led0_task(void *p_arg);
+	lValueToSend = (long)pvParameters;
+	for (; ;)
+	{
 
-#define LED1_TASK_PRIO 3
-#define LED1_TSK_SIZE 50
-TaskHandle_t LED1Task_Handler;
-void led1_task(void *p_arg);
+		xStatus = xQueueSendToBack(xQueue, &lValueToSend, 0);
+		if (xStatus != pdPASS)
+		{
+			printf("Could not send to the queue.\n");
+		}
+		taskYIELD();
+	}
+}
 
-#define FLOAT_TASK_PRIO 4
-#define FLOAT_TSK_SIZE 128
-TaskHandle_t FLOATTask_Handler;
-void float_task(void *p_arg);
+static void vReceiverTask(void *pvParameters)
+{
+	long lReceivedValue;
+	portBASE_TYPE xStatus;
+	const portTickType xTicksToWait = 100 / portTICK_RATE_MS;
+
+	for (; ;)
+	{
+		if (uxQueueMessagesWaiting(xQueue) != 0)
+			printf("Queue should have been empty!\n");
+		xStatus = xQueueReceive(xQueue, &lReceivedValue, xTicksToWait);
+		if (xStatus == pdPASS)
+			printf("Received = %ld\n", lReceivedValue);
+		else
+		{
+			printf("cound not receive from the queue.\n");
+		}
+	}
+}
+
 
 int main(void)
 {
-	xTaskCreate((TaskFunction_t)start_task, 
-			(const char *)"start_task",
-			(uint16_t )START_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)START_TASK_PRIO,
-			(TaskHandle_t *)*&StartTask_Handler);
-	vTaskStartScheduler();
+	xQueue = xQueueCreate(5, sizeof(long));
+	if (xQueue != NULL)
+	{
+		xTaskCreate(vSenderTask, 
+				"Sender1",
+				1000,
+				(void *)100,
+				1,
+				NULL);
+		xTaskCreate(vSenderTask, 
+				"Sender2",
+				1000,
+				(void *)200,
+				1,
+				NULL);
+		xTaskCreate(vReceiverTask, "Receiver", 1000, NULL, 2, NULL);
+		vTaskStartScheduler();
+	}
+	else
+	{
+		printf("Error: can not create queue!\n");
+	}
+
+	for (; ;);
 
 	return 0;
-}
-
-void start_task(void *pvParameters)
-{
-	taskENTER_CRITICAL();
-
-	xTaskCreate((TaskFunction_t)led0_task,
-			(const char *)"led0_task",
-			(uint16_t)LED0_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)LED0_TASK_PRIO,
-			(TaskHandle_t *)&LED0Task_Handler);
-
-	xTaskCreate((TaskFunction_t)led1_task,
-			(const char *)"led1_task",
-			(uint16_t)LED1_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)LED0_TASK_PRIO,
-			(TaskHandle_t *)&LED1Task_Handler);
-
-	xTaskCreate((TaskFunction_t)float_task,
-			(const char *)"float_task",
-			(uint16_t)FLOAT_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)FLOAT_TASK_PRIO,
-			(TaskHandle_t *)&FLOATTask_Handler);
-	vTaskDelete(StartTask_Handler);
-	taskEXIT_CRITICAL();
-}
-
-void led0_task(void *pvParameters)
-{
-	static uint32_t StaticTest;
-	while (1)
-	{
-		printf("LED0\n");
-	/*	vTaskDelay(500);*/
-		for (uint32_t i = 0; i < 0xffffffff; i++)
-			;
-		StaticTest++;
-		if (StaticTest > 4)
-			vTaskSuspend(0);
-	}
-}
-
-void led1_task(void *pvParameters)
-{
-	while (1)
-	{
-		printf("LED1\n");
-		vTaskDelay(800);
-	}
-}
-
-void float_task(void *p_arg)
-{
-	static float float_num = 0.00;
-	while (1)
-	{
-		float_num += 0.01f;
-		printf("the value of float_num is : % .4f\n", float_num);
-		vTaskDelay(1000);
-	}
 }
 
 void vMainQueueSendPassed(void)
