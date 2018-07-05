@@ -6,102 +6,87 @@
 #include "task.h"
 #include "queue.h"
 
-#define START_TASK_PRIO	1
-#define START_TSK_SIZE	128
-TaskHandle_t StartTask_Handler;
-void start_task(void *pvParameters);
+#define TASK1_STK_SIZE 100
+#define TASK2_STK_SIZE 100
+#define TASK1_PRIO 1
+#define TASK2_PRIO 2
 
-#define LED0_TASK_PRIO 2
-#define LED0_TSK_SIZE 50
-TaskHandle_t LED0Task_Handler;
-void led0_task(void *p_arg);
+QueueHandle_t queue_handler;
+void task1(void *pvParameters);
 
-#define LED1_TASK_PRIO 3
-#define LED1_TSK_SIZE 50
-TaskHandle_t LED1Task_Handler;
-void led1_task(void *p_arg);
+void task2(void *pvParameters);
 
-#define FLOAT_TASK_PRIO 4
-#define FLOAT_TSK_SIZE 128
-TaskHandle_t FLOATTask_Handler;
-void float_task(void *p_arg);
+enum task_index
+{
+	TASK1,
+	TASK2,
+	TASK_END
+};
+
+
+typedef struct 
+{
+	TaskFunction_t task;
+	char *task_name;
+	uint16_t task_stk_size;
+	void *parameter;
+	UBaseType_t task_prio;
+	TaskHandle_t *task_handler;
+}task_table_t;
+
+TaskHandle_t task1_handler;
+TaskHandle_t task2_handler;
+
+task_table_t task_table[] = {
+	{task1, "task1", TASK1_STK_SIZE, NULL, TASK1_PRIO, &task1_handler},
+	{task2, "task2", TASK2_STK_SIZE, NULL, TASK2_PRIO, &task2_handler}
+};
+
 
 int main(void)
 {
-	xTaskCreate((TaskFunction_t)start_task, 
-			(const char *)"start_task",
-			(uint16_t )START_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)START_TASK_PRIO,
-			(TaskHandle_t *)*&StartTask_Handler);
+
+	for (UBaseType_t index = 0; index < TASK_END; index++)
+	{
+		xTaskCreate(task_table[index].task,
+				task_table[index].task_name,
+				task_table[index].task_stk_size,
+				task_table[index].parameter,
+				task_table[index].task_prio,
+				task_table[index].task_handler);
+	}
+
+
 	vTaskStartScheduler();
 
 	return 0;
 }
 
-void start_task(void *pvParameters)
+void task1(void *pvParameters)
 {
-	taskENTER_CRITICAL();
-
-	xTaskCreate((TaskFunction_t)led0_task,
-			(const char *)"led0_task",
-			(uint16_t)LED0_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)LED0_TASK_PRIO,
-			(TaskHandle_t *)&LED0Task_Handler);
-
-	xTaskCreate((TaskFunction_t)led1_task,
-			(const char *)"led1_task",
-			(uint16_t)LED1_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)LED0_TASK_PRIO,
-			(TaskHandle_t *)&LED1Task_Handler);
-
-	xTaskCreate((TaskFunction_t)float_task,
-			(const char *)"float_task",
-			(uint16_t)FLOAT_TSK_SIZE,
-			(void *)NULL,
-			(UBaseType_t)FLOAT_TASK_PRIO,
-			(TaskHandle_t *)&FLOATTask_Handler);
-	vTaskDelete(StartTask_Handler);
-	taskEXIT_CRITICAL();
-}
-
-void led0_task(void *pvParameters)
-{
-	static uint32_t StaticTest;
+	queue_handler = xQueueCreate(4, sizeof(int));
+	int sended = 0;	
 	while (1)
 	{
-		printf("LED0\n");
-	/*	vTaskDelay(500);*/
-		for (uint32_t i = 0; i < 0xffffffff; i++)
-			;
-		StaticTest++;
-		if (StaticTest > 4)
-			vTaskSuspend(0);
+		printf("Task1\n");
+		xQueueSend(queue_handler, &sended, 0);
+		vTaskDelay(100);
+		sended++;
 	}
 }
 
-void led1_task(void *pvParameters)
-{
-	while (1)
-	{
-		printf("LED1\n");
-		vTaskDelay(80);
-	}
-}
 
-void float_task(void *p_arg)
+void task2(void *pvParameters)
 {
-	static float float_num = 0.00;
+	int buf = 0;
 	while (1)
 	{
-		float_num += 0.01f;
-		printf("the value of float_num is : % .4f\n", float_num);
+		printf("Task2\n");
 		vTaskDelay(10);
+		xQueueReceive(queue_handler, &buf, 0);
+		printf("receive: %d", (int)(buf));
 	}
 }
-
 void vMainQueueSendPassed(void)
 {
 	;
