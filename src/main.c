@@ -56,9 +56,7 @@ int main(void)
 				task_table[index].task_handler);
 	}
 
-
 	vTaskStartScheduler();
-
 	return 0;
 }
 
@@ -74,7 +72,6 @@ void task1(void *pvParameters)
 		sended++;
 	}
 }
-
 
 void task2(void *pvParameters)
 {
