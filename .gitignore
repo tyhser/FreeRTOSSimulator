@@ -1,6 +1,6 @@
 # Prerequisites
 *.d
-
+*~
 # Object files
 *.o
 *.ko
@@ -41,7 +41,7 @@
 *.su
 *.idb
 *.pdb
-
+SI/
 # Kernel Module Compile Results
 *.mod*
 *.cmd
